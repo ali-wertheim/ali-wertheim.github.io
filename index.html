@@ -240,20 +240,20 @@
             
             <div class="config-group">
                 <label for="requiredColumns">Required Columns (comma-separated):</label>
-                <input type="text" id="requiredColumns" value="Field ID, Name, Fabric_ID_Number__c, Latitude__c, Longitude__c, Provider_ID__c, Technology_Type_at_Location__c, Technology_Type_Other__c, Location_Type__c, Housing_Units_at_Location__c, Speed_Pre_Investment__c, Max_Download_Speed_Offered__c, Max_Download_Speed_Delivered__c, Max_Upload_Speed_Offered__c, Max_Upload_Speed_Delivered__c, Latency_Delivered_at_Location__c" readonly>
-                <div class="help-text">These column names must be present in the CSV</div>
+                <input type="text" id="requiredColumns" placeholder="e.g., name, email, age, status">
+                <div class="help-text">Enter the column names that must be present in the CSV</div>
             </div>
             
             <div class="config-group">
                 <label for="validateColumn">Column to Validate Values:</label>
-                <input type="text" id="validateColumn" value="Fabric_ID_Number__c" readonly>
-                <div class="help-text">The column name whose values will be validated</div>
+                <input type="text" id="validateColumn" placeholder="e.g., status">
+                <div class="help-text">Enter the column name whose values you want to validate</div>
             </div>
             
             <div class="config-group">
-                <label for="validOptions">Valid Options (loaded from GitHub):</label>
-                <textarea id="validOptions" placeholder="Loading valid options from valid_ids.csv..." readonly></textarea>
-                <div class="help-text">Valid values are automatically loaded from valid_ids.csv on GitHub</div>
+                <label for="validOptions">Valid Options (comma-separated):</label>
+                <textarea id="validOptions" placeholder="e.g., active, inactive, pending"></textarea>
+                <div class="help-text">Enter the allowed values for the validation column</div>
             </div>
             
             <button class="validate-btn" id="validateBtn" onclick="validateCSV()" disabled>
@@ -267,32 +267,6 @@
     <script>
         let csvData = null;
         let csvHeaders = [];
-        let validOptions = [];
-
-        // Load valid options from GitHub on page load
-        window.addEventListener('DOMContentLoaded', loadValidOptions);
-
-        async function loadValidOptions() {
-            try {
-                const response = await fetch('./valid_ids.csv');
-                const csvText = await response.text();
-                
-                Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        if (results.data && results.data.length > 0) {
-                            validOptions = results.data.map(row => row.location_id).filter(id => id);
-                            document.getElementById('validOptions').value = validOptions.join(', ');
-                            document.getElementById('validOptions').placeholder = `Loaded ${validOptions.length} valid options from GitHub`;
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading valid options:', error);
-                document.getElementById('validOptions').placeholder = 'Error loading valid options from GitHub';
-            }
-        }
 
         // File input handling
         document.getElementById('fileInput').addEventListener('change', handleFile);
@@ -403,7 +377,10 @@
                 .filter(col => col);
 
             const validateColumn = document.getElementById('validateColumn').value.trim().toLowerCase();
-            const validOptionsArray = validOptions.map(option => String(option).trim().toLowerCase());
+            const validOptions = document.getElementById('validOptions').value
+                .split(',')
+                .map(option => option.trim().toLowerCase())
+                .filter(option => option);
 
             let results = [];
             let hasErrors = false;
@@ -422,7 +399,7 @@
             }
 
             // Validate column values
-            if (validateColumn && validOptionsArray.length > 0) {
+            if (validateColumn && validOptions.length > 0) {
                 const actualColumnName = csvHeaders.find(h => h.toLowerCase() === validateColumn);
                 
                 if (!actualColumnName) {
@@ -437,7 +414,7 @@
                         if (value !== null && value !== undefined && value !== '') {
                             const valueStr = String(value).toLowerCase();
                             uniqueValues.add(valueStr);
-                            if (!validOptionsArray.includes(valueStr)) {
+                            if (!validOptions.includes(valueStr)) {
                                 invalidRows.push({ row: index + 1, value: value });
                             }
                         }
