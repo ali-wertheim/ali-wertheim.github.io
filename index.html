@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV File Validator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            border: 3px dashed #ccc;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .config-section {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .config-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .validate-btn {
+            width: 100%;
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .validate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(86, 171, 47, 0.3);
+        }
+
+        .validate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .results {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .success {
+            border-left-color: #4caf50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .error {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .file-info {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .preview-table {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV File Validator</h1>
+        
+        <div class="upload-section" id="uploadSection">
+            <p style="margin-bottom: 20px; font-size: 18px; color: #666;">
+                📁 Drag and drop your CSV file here or click to browse
+            </p>
+            <input type="file" id="fileInput" accept=".csv" />
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Choose CSV File
+            </button>
+        </div>
+
+        <div id="fileInfo" class="file-info" style="display: none;">
+            <h3>File Information</h3>
+            <div id="fileDetails"></div>
+            <div id="csvPreview" class="preview-table"></div>
+        </div>
+
+        <div class="config-section">
+            <h3>Validation Configuration</h3>
+            
+            <div class="config-group">
+                <label for="requiredColumns">Required Columns (comma-separated):</label>
+                <input type="text" id="requiredColumns" placeholder="e.g., name, email, age, status">
+                <div class="help-text">Enter the column names that must be present in the CSV</div>
+            </div>
+            
+            <div class="config-group">
+                <label for="validateColumn">Column to Validate Values:</label>
+                <input type="text" id="validateColumn" placeholder="e.g., status">
+                <div class="help-text">Enter the column name whose values you want to validate</div>
+            </div>
+            
+            <div class="config-group">
+                <label for="validOptions">Valid Options (comma-separated):</label>
+                <textarea id="validOptions" placeholder="e.g., active, inactive, pending"></textarea>
+                <div class="help-text">Enter the allowed values for the validation column</div>
+            </div>
+            
+            <button class="validate-btn" id="validateBtn" onclick="validateCSV()" disabled>
+                Validate CSV File
+            </button>
+        </div>
+
+        <div id="results" style="display: none;"></div>
+    </div>
+
+    <script>
+        let csvData = null;
+        let csvHeaders = [];
+
+        // File input handling
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        
+        // Drag and drop functionality
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile({ target: { files: files } });
+            }
+        });
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showResults('Please select a CSV file.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseCSV(e.target.result, file);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(csvText, file) {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        showResults('Error parsing CSV: ' + results.errors[0].message, 'error');
+                        return;
+                    }
+
+                    csvData = results.data;
+                    csvHeaders = results.meta.fields || [];
+                    
+                    displayFileInfo(file, csvData.length, csvHeaders);
+                    document.getElementById('validateBtn').disabled = false;
+                    hideResults();
+                }
+            });
+        }
+
+        function displayFileInfo(file, rowCount, headers) {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileDetails = document.getElementById('fileDetails');
+            const csvPreview = document.getElementById('csvPreview');
+
+            fileDetails.innerHTML = `
+                <p><strong>File Name:</strong> ${file.name}</p>
+                <p><strong>File Size:</strong> ${(file.size / 1024).toFixed(2)} KB</p>
+                <p><strong>Rows:</strong> ${rowCount}</p>
+                <p><strong>Columns:</strong> ${headers.length}</p>
+                <p><strong>Column Names:</strong> ${headers.join(', ')}</p>
+            `;
+
+            // Show preview of first 5 rows
+            if (csvData && csvData.length > 0) {
+                let tableHTML = '<h4>Data Preview (First 5 rows):</h4><table><thead><tr>';
+                headers.forEach(header => {
+                    tableHTML += `<th>${header}</th>`;
+                });
+                tableHTML += '</tr></thead><tbody>';
+
+                const previewRows = csvData.slice(0, 5);
+                previewRows.forEach(row => {
+                    tableHTML += '<tr>';
+                    headers.forEach(header => {
+                        tableHTML += `<td>${row[header] || ''}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+                tableHTML += '</tbody></table>';
+                csvPreview.innerHTML = tableHTML;
+            }
+
+            fileInfo.style.display = 'block';
+        }
+
+        function validateCSV() {
+            if (!csvData || !csvHeaders.length) {
+                showResults('Please upload a CSV file first.', 'error');
+                return;
+            }
+
+            const requiredColumns = document.getElementById('requiredColumns').value
+                .split(',')
+                .map(col => col.trim().toLowerCase())
+                .filter(col => col);
+
+            const validateColumn = document.getElementById('validateColumn').value.trim().toLowerCase();
+            const validOptions = document.getElementById('validOptions').value
+                .split(',')
+                .map(option => option.trim().toLowerCase())
+                .filter(option => option);
+
+            let results = [];
+            let hasErrors = false;
+
+            // Check required columns
+            if (requiredColumns.length > 0) {
+                const csvHeadersLower = csvHeaders.map(h => h.toLowerCase());
+                const missingColumns = requiredColumns.filter(col => !csvHeadersLower.includes(col));
+                
+                if (missingColumns.length > 0) {
+                    results.push(`❌ Missing required columns: ${missingColumns.join(', ')}`);
+                    hasErrors = true;
+                } else {
+                    results.push(`✅ All required columns present: ${requiredColumns.join(', ')}`);
+                }
+            }
+
+            // Validate column values
+            if (validateColumn && validOptions.length > 0) {
+                const actualColumnName = csvHeaders.find(h => h.toLowerCase() === validateColumn);
+                
+                if (!actualColumnName) {
+                    results.push(`❌ Validation column '${validateColumn}' not found in CSV`);
+                    hasErrors = true;
+                } else {
+                    const invalidRows = [];
+                    const uniqueValues = new Set();
+                    
+                    csvData.forEach((row, index) => {
+                        const value = row[actualColumnName];
+                        if (value !== null && value !== undefined && value !== '') {
+                            const valueStr = String(value).toLowerCase();
+                            uniqueValues.add(valueStr);
+                            if (!validOptions.includes(valueStr)) {
+                                invalidRows.push({ row: index + 1, value: value });
+                            }
+                        }
+                    });
+
+                    if (invalidRows.length > 0) {
+                        results.push(`❌ Found ${invalidRows.length} invalid values in '${actualColumnName}' column`);
+                        if (invalidRows.length <= 10) {
+                            results.push(`Invalid rows: ${invalidRows.map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
+                        } else {
+                            results.push(`First 10 invalid rows: ${invalidRows.slice(0, 10).map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
+                        }
+                        hasErrors = true;
+                    } else {
+                        results.push(`✅ All values in '${actualColumnName}' column are valid`);
+                    }
+
+                    results.push(`📊 Unique values found: ${Array.from(uniqueValues).join(', ')}`);
+                }
+            }
+
+            // Show summary
+            results.unshift(`📋 Validation Summary for ${csvData.length} rows:`);
+            
+            showResults(results.join('<br><br>'), hasErrors ? 'error' : 'success');
+        }
+
+        function showResults(message, type) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="result-item">${message}</div>`;
+            results.className = `results ${type}`;
+            results.style.display = 'block';
+        }
+
+        function hideResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
