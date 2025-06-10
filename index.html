@@ -239,27 +239,21 @@
             <h3>Validation Configuration</h3>
             
             <div class="config-group">
-                <label>Required Columns (Pre-configured):</label>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; font-family: monospace; font-size: 12px; max-height: 120px; overflow-y: auto;">
-                    Field ID, Name, Fabric_ID_Number__c, Latitude__c, Longitude__c, Provider_ID__c, Technology_Type_at_Location__c, Technology_Type_Other__c, Location_Type__c, Housing_Units_at_Location__c, Speed_Pre_Investment__c, Max_Download_Speed_Offered__c, Max_Download_Speed_Delivered__c, Max_Upload_Speed_Offered__c, Max_Upload_Speed_Delivered__c, Latency_Delivered_at_Location__c
-                </div>
-                <div class="help-text">These columns must be present in your CSV file</div>
+                <label for="requiredColumns">Required Columns (comma-separated):</label>
+                <input type="text" id="requiredColumns" value="Field ID, Name, Fabric_ID_Number__c, Latitude__c, Longitude__c, Provider_ID__c, Technology_Type_at_Location__c, Technology_Type_Other__c, Location_Type__c, Housing_Units_at_Location__c, Speed_Pre_Investment__c, Max_Download_Speed_Offered__c, Max_Download_Speed_Delivered__c, Max_Upload_Speed_Offered__c, Max_Upload_Speed_Delivered__c, Latency_Delivered_at_Location__c" readonly>
+                <div class="help-text">These column names must be present in the CSV</div>
             </div>
             
             <div class="config-group">
-                <label>Column to Validate Values:</label>
-                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; font-family: monospace; font-weight: 600;">
-                    Fabric_ID_Number__c
-                </div>
-                <div class="help-text">Values in this column will be validated against your specified options</div>
+                <label for="validateColumn">Column to Validate Values:</label>
+                <input type="text" id="validateColumn" value="Fabric_ID_Number__c" readonly>
+                <div class="help-text">The column name whose values will be validated</div>
             </div>
             
             <div class="config-group">
-                <label>Valid Options for Fabric_ID_Number__c:</label>
-                <div id="validOptionsStatus" style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0;">
-                    <span id="loadingStatus">🔄 Loading valid Fabric IDs from GitHub...</span>
-                </div>
-                <div class="help-text">Valid IDs are automatically loaded from 'valid_ids.csv' on GitHub</div>
+                <label for="validOptions">Valid Options (loaded from GitHub):</label>
+                <textarea id="validOptions" placeholder="Loading valid options from valid_ids.csv..." readonly></textarea>
+                <div class="help-text">Valid values are automatically loaded from valid_ids.csv on GitHub</div>
             </div>
             
             <button class="validate-btn" id="validateBtn" onclick="validateCSV()" disabled>
@@ -273,73 +267,30 @@
     <script>
         let csvData = null;
         let csvHeaders = [];
-        let validFabricIds = [];
-        let validIdsLoaded = false;
+        let validOptions = [];
 
-        // Load valid IDs from GitHub on page load
-        window.addEventListener('DOMContentLoaded', loadValidIds);
+        // Load valid options from GitHub on page load
+        window.addEventListener('DOMContentLoaded', loadValidOptions);
 
-        async function loadValidIds() {
+        async function loadValidOptions() {
             try {
                 const response = await fetch('./valid_ids.csv');
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
                 const csvText = await response.text();
                 
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
-                    dynamicTyping: true,
                     complete: function(results) {
-                        if (results.errors.length > 0) {
-                            updateValidIdsStatus('❌ Error parsing valid_ids.csv: ' + results.errors[0].message, 'error');
-                            return;
-                        }
-
-                        const locationIdColumn = 'location_id';
-                        const foundColumn = results.meta.fields.find(field => 
-                            field.toLowerCase() === locationIdColumn.toLowerCase()
-                        );
-
-                        if (!foundColumn) {
-                            updateValidIdsStatus('❌ Column "location_id" not found in valid_ids.csv', 'error');
-                            return;
-                        }
-
-                        validFabricIds = results.data
-                            .map(row => row[foundColumn])
-                            .filter(id => id !== null && id !== undefined && id !== '')
-                            .map(id => String(id).trim());
-
-                        validIdsLoaded = true;
-                        updateValidIdsStatus(`✅ Loaded ${validFabricIds.length} valid Fabric IDs from GitHub`, 'success');
-                        
-                        // Enable validation button if CSV is already loaded
-                        if (csvData) {
-                            document.getElementById('validateBtn').disabled = false;
+                        if (results.data && results.data.length > 0) {
+                            validOptions = results.data.map(row => row.location_id).filter(id => id);
+                            document.getElementById('validOptions').value = validOptions.join(', ');
+                            document.getElementById('validOptions').placeholder = `Loaded ${validOptions.length} valid options from GitHub`;
                         }
                     }
                 });
             } catch (error) {
-                console.error('Error loading valid IDs:', error);
-                updateValidIdsStatus(`❌ Failed to load valid_ids.csv: ${error.message}`, 'error');
-            }
-        }
-
-        function updateValidIdsStatus(message, type) {
-            const statusElement = document.getElementById('validOptionsStatus');
-            const loadingElement = document.getElementById('loadingStatus');
-            
-            loadingElement.innerHTML = message;
-            
-            if (type === 'error') {
-                statusElement.style.background = 'rgba(244, 67, 54, 0.1)';
-                statusElement.style.borderColor = '#f44336';
-            } else if (type === 'success') {
-                statusElement.style.background = 'rgba(76, 175, 80, 0.1)';
-                statusElement.style.borderColor = '#4caf50';
+                console.error('Error loading valid options:', error);
+                document.getElementById('validOptions').placeholder = 'Error loading valid options from GitHub';
             }
         }
 
@@ -398,11 +349,7 @@
                     csvHeaders = results.meta.fields || [];
                     
                     displayFileInfo(file, csvData.length, csvHeaders);
-                    
-                    // Only enable validation button if valid IDs are loaded
-                    if (validIdsLoaded) {
-                        document.getElementById('validateBtn').disabled = false;
-                    }
+                    document.getElementById('validateBtn').disabled = false;
                     hideResults();
                 }
             });
@@ -450,108 +397,67 @@
                 return;
             }
 
-            if (!validIdsLoaded || validFabricIds.length === 0) {
-                showResults('Valid Fabric IDs are not loaded yet. Please wait or refresh the page.', 'error');
-                return;
-            }
+            const requiredColumns = document.getElementById('requiredColumns').value
+                .split(',')
+                .map(col => col.trim().toLowerCase())
+                .filter(col => col);
 
-            // Hardcoded required columns
-            const requiredColumns = [
-                'Field ID', 'Name', 'Fabric_ID_Number__c', 'Latitude__c', 'Longitude__c', 
-                'Provider_ID__c', 'Technology_Type_at_Location__c', 'Technology_Type_Other__c', 
-                'Location_Type__c', 'Housing_Units_at_Location__c', 'Speed_Pre_Investment__c', 
-                'Max_Download_Speed_Offered__c', 'Max_Download_Speed_Delivered__c', 
-                'Max_Upload_Speed_Offered__c', 'Max_Upload_Speed_Delivered__c', 
-                'Latency_Delivered_at_Location__c'
-            ].map(col => col.toLowerCase());
-
-            // Hardcoded validation column
-            const validateColumn = 'fabric_id_number__c';
+            const validateColumn = document.getElementById('validateColumn').value.trim().toLowerCase();
+            const validOptionsArray = validOptions.map(option => String(option).trim().toLowerCase());
 
             let results = [];
             let hasErrors = false;
 
             // Check required columns
-            const csvHeadersLower = csvHeaders.map(h => h.toLowerCase());
-            const missingColumns = requiredColumns.filter(col => !csvHeadersLower.includes(col));
-            
-            if (missingColumns.length > 0) {
-                results.push(`❌ Missing required columns (${missingColumns.length}): ${missingColumns.join(', ')}`);
-                hasErrors = true;
-            } else {
-                results.push(`✅ All ${requiredColumns.length} required columns are present`);
-            }
-
-            // Validate Fabric_ID_Number__c values
-            const actualColumnName = csvHeaders.find(h => h.toLowerCase() === validateColumn);
-            
-            if (!actualColumnName) {
-                results.push(`❌ Validation column 'Fabric_ID_Number__c' not found in CSV`);
-                hasErrors = true;
-            } else {
-                const invalidRows = [];
-                const uniqueValues = new Set();
-                let emptyValues = 0;
+            if (requiredColumns.length > 0) {
+                const csvHeadersLower = csvHeaders.map(h => h.toLowerCase());
+                const missingColumns = requiredColumns.filter(col => !csvHeadersLower.includes(col));
                 
-                csvData.forEach((row, index) => {
-                    const value = row[actualColumnName];
-                    if (value === null || value === undefined || value === '') {
-                        emptyValues++;
-                    } else {
-                        const valueStr = String(value).trim();
-                        uniqueValues.add(valueStr);
-                        if (!validFabricIds.includes(valueStr)) {
-                            invalidRows.push({ row: index + 1, value: valueStr });
-                        }
-                    }
-                });
-
-                if (emptyValues > 0) {
-                    results.push(`⚠️ Found ${emptyValues} empty values in 'Fabric_ID_Number__c' column`);
-                }
-
-                if (invalidRows.length > 0) {
-                    results.push(`❌ Found ${invalidRows.length} invalid Fabric ID values`);
-                    if (invalidRows.length <= 10) {
-                        results.push(`Invalid rows: ${invalidRows.map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
-                    } else {
-                        results.push(`First 10 invalid rows: ${invalidRows.slice(0, 10).map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
-                    }
-                    hasErrors = true;
-                } else if (emptyValues === csvData.length) {
-                    results.push(`❌ All values in 'Fabric_ID_Number__c' column are empty`);
+                if (missingColumns.length > 0) {
+                    results.push(`❌ Missing required columns: ${missingColumns.join(', ')}`);
                     hasErrors = true;
                 } else {
-                    results.push(`✅ All non-empty Fabric ID values are valid`);
-                }
-
-                if (uniqueValues.size > 0) {
-                    results.push(`📊 Found ${uniqueValues.size} unique Fabric ID values in your CSV`);
-                    if (uniqueValues.size <= 20) {
-                        results.push(`Unique values: ${Array.from(uniqueValues).join(', ')}`);
-                    }
+                    results.push(`✅ All required columns present: ${requiredColumns.join(', ')}`);
                 }
             }
 
-            // Add summary of validation source
-            results.push(`📋 Validated against ${validFabricIds.length} valid Fabric IDs from GitHub`);
+            // Validate column values
+            if (validateColumn && validOptionsArray.length > 0) {
+                const actualColumnName = csvHeaders.find(h => h.toLowerCase() === validateColumn);
+                
+                if (!actualColumnName) {
+                    results.push(`❌ Validation column '${validateColumn}' not found in CSV`);
+                    hasErrors = true;
+                } else {
+                    const invalidRows = [];
+                    const uniqueValues = new Set();
+                    
+                    csvData.forEach((row, index) => {
+                        const value = row[actualColumnName];
+                        if (value !== null && value !== undefined && value !== '') {
+                            const valueStr = String(value).toLowerCase();
+                            uniqueValues.add(valueStr);
+                            if (!validOptionsArray.includes(valueStr)) {
+                                invalidRows.push({ row: index + 1, value: value });
+                            }
+                        }
+                    });
 
-            // Show summary
-            results.unshift(`📋 Validation Summary for ${csvData.length} rows:`);
-            
-            showResults(results.join('<br><br>'), hasErrors ? 'error' : 'success');
-        }
+                    if (invalidRows.length > 0) {
+                        results.push(`❌ Found ${invalidRows.length} invalid values in '${actualColumnName}' column`);
+                        if (invalidRows.length <= 10) {
+                            results.push(`Invalid rows: ${invalidRows.map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
+                        } else {
+                            results.push(`First 10 invalid rows: ${invalidRows.slice(0, 10).map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
+                        }
+                        hasErrors = true;
+                    } else {
+                        results.push(`✅ All values in '${actualColumnName}' column are valid`);
+                    }
 
-        function showResults(message, type) {
-            const results = document.getElementById('results');
-            results.innerHTML = `<div class="result-item">${message}</div>`;
-            results.className = `results ${type}`;
-            results.style.display = 'block';
-        }
-
-        function hideResults() {
-            document.getElementById('results').style.display = 'none';
-        }
+                    results.push(`📊 Unique values found: ${Array.from(uniqueValues).join(', ')}`);
+                }
+            }
 
             // Show summary
             results.unshift(`📋 Validation Summary for ${csvData.length} rows:`);
