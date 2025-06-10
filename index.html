@@ -419,6 +419,15 @@
                 } else {
                     results.push(`✅ All required columns present: ${requiredColumns.join(', ')}`);
                 }
+
+                // Check for extra columns
+                const extraColumns = csvHeadersLower.filter(col => !requiredColumns.includes(col));
+                if (extraColumns.length > 0) {
+                    const originalExtraColumns = extraColumns.map(col => {
+                        return csvHeaders.find(h => h.toLowerCase() === col);
+                    });
+                    results.push(`⚠️ Extra fields that will not be maintained after upload: ${originalExtraColumns.join(', ')}`);
+                }
             }
 
             // Validate column values
@@ -430,32 +439,24 @@
                     hasErrors = true;
                 } else {
                     const invalidRows = [];
-                    const uniqueValues = new Set();
                     
                     csvData.forEach((row, index) => {
                         const value = row[actualColumnName];
                         if (value !== null && value !== undefined && value !== '') {
                             const valueStr = String(value).toLowerCase();
-                            uniqueValues.add(valueStr);
                             if (!validOptionsArray.includes(valueStr)) {
-                                invalidRows.push({ row: index + 1, value: value });
+                                invalidRows.push(index + 1);
                             }
                         }
                     });
 
                     if (invalidRows.length > 0) {
                         results.push(`❌ Found ${invalidRows.length} invalid values in '${actualColumnName}' column`);
-                        if (invalidRows.length <= 10) {
-                            results.push(`Invalid rows: ${invalidRows.map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
-                        } else {
-                            results.push(`First 10 invalid rows: ${invalidRows.slice(0, 10).map(r => `Row ${r.row}: "${r.value}"`).join(', ')}`);
-                        }
+                        results.push(`Invalid row numbers:<br>${invalidRows.join('<br>')}`);
                         hasErrors = true;
                     } else {
                         results.push(`✅ All values in '${actualColumnName}' column are valid`);
                     }
-
-                    results.push(`📊 Unique values found: ${Array.from(uniqueValues).join(', ')}`);
                 }
             }
 
